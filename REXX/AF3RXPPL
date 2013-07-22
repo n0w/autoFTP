@@ -1,0 +1,389 @@
+/************************ REXX *****************************************        
+ AUTOR: ANGEL SUAREZ BARCENA MARTIN                                             
+                                                                                
+ - DESCRIPCION -                                                                
+ Permite gestionar la descarga de ficheros desde cliente mediante el            
+protocolo FTP.                                                                  
+Consta de varios paneles que llaman a distintos modulos segun la forma          
+de trabajo seleccionada.                                                        
+                                                                                
+ - ULTIMA REVISION: 19/06/2013                                                  
+                                                                                
+ - MODULOS -                                                                    
+1- AF3RXPPL: Este fichero                                                       
+2- AF3RXSEC: Modulo para patron/directorio                                      
+3- AF3RXSAV: Modulo para listado de ficheros en remoto                          
+4- AF3RXFIL: Modulo para listado de ficheros en local                           
+                                                                                
+ - PANELES -                                                                    
+1- AF3PL000: Seleccion de modo de trabajo                                       
+2- AF3PL001: Patron/directorio                                                  
+3- AF3PL002: Seleccion de cliente                                               
+4- AF3PL003: Seleccion de destino                                               
+5- AF3PL004: Lista remota de ficheros                                           
+6- AF3PL005: Lista local de ficheros                                            
+                                                                                
+********************************************************************/           
+/* ------------------------------------------------------------------ */        
+/*              Ctes, variables temporales, predefinidos              */        
+/* ------------------------------------------------------------------ */        
+                                                                                
+/* Informacion parametros clientes => TABLA                           */        
+SUBSYS = 'xxxx'                                                                 
+TABLA = 'xxxxxx.FTPLOGIN'                                                       
+                                                                                
+PRE_CLI = '' /* Prefijo que anteponemos al patron en origen           */        
+PRE_LOC = '' /* Prefijo que anteponemos al patron en destino          */        
+                                                                                
+DIR_ORIGEN = 'xxxx.xxxx.xxx'                                                   
+PATRON_ORIGEN = 'XXXNNNNN'                                                      
+PATRON_DESTINO = 'xxx.xxx.xxx'                                             
+PATRON_WRK = 'xxx.xxx.xxx.ZFTP'                                                  
+                                                                                
+DEST_MOD = '2' /* Modo de formato destino. Por defecto = 2            */        
+                                                                                
+/* LIB de paneles                                                     */        
+LIB = 'xxx.xxx.xxx.REXX'                                                
+PANEL_SEL = 'AF3PL000'                                                          
+PANEL_PPL = 'AF3PL001'                                                          
+PANEL_CLI = 'AF3PL002'                                                          
+PANEL_DES = 'AF3PL003'                                                          
+PANEL_SAV = 'AF3PL004'                                                          
+PANEL_FIL = 'AF3PL005'                                                          
+                                                                                
+/* Letras asociadas a clientes */                                               
+ID_CLI.xxxx = 'x'                                                               
+                                                                                
+/* Inicializar entorno panel ISPF                                     */        
+"ISPEXEC LIBDEF ISPPLIB DATASET ID('"LIB"')"                                    
+"ISPEXEC ADDPOP ROW(1) COLUMN (3)"                                              
+                                                                                
+/* ------------------------------------------------------------------ */        
+/*                    Bucle principal del programa                    */        
+/* ------------------------------------------------------------------ */        
+DO FOREVER                                                                      
+   /* Mostramos el primer panel. Iteramos hasta rc = 8 / PF03*/                 
+   "ISPEXEC DISPLAY PANEL("PANEL_SEL")"                                         
+   IF RC <> 0 THEN LEAVE                                                        
+   SELECT                                                                       
+      /* ############################################################ */        
+      /*            Modo normal de ejecucion - 1 -                    */        
+      /* ############################################################ */        
+      WHEN ZCMD = '1' THEN /* Modo normal                             */        
+      DO FOREVER                                                                
+         MPRC = MOSTRAR_PANEL(PANEL_PPL)                                        
+                                                                                
+         IF MPRC = 8 THEN EXIT                                                  
+                                                                                
+         /* Panel destino                                             */        
+         IF XDESTX = '?' THEN                                                   
+         DO                                                                     
+            MPRC = MOSTRAR_PANEL(PANEL_DES)                                     
+                                                                                
+            /* Cod.Retorno se establece a 8 cuando se pulsa PF03      */        
+            IF MPRC <> 0 & MPRC <> 8 THEN LEAVE                                 
+            ELSE IF COMPROBAR_DESTINO() = 0 THEN ITERATE                        
+         END                                                                    
+                                                                                
+         /* Panel clientes                                            */        
+         IF XCLIX = '?' THEN                                                    
+         DO                                                                     
+            MPRC = MOSTRAR_PANEL(PANEL_CLI)                                     
+            IF MPRC <> 0 & MPRC <> 8 THEN LEAVE                                 
+            ELSE DO                                                             
+                    IF COMPROBAR_CLIENTE() = 0 THEN                             
+                       DO                                                       
+                         RC_LOGIN = ESTABLECER_LOGIN('1')                       
+                       END                                                      
+                    ITERATE                                                     
+                 END                                                            
+         END                                                                    
+         /* Comprobacion todo correcto antes de llamar */                       
+         IF COMPROBAR_PARAMETROS() <> 0 THEN ITERATE                            
+         ELSE DO                                                                
+                 /* Generar identificador unico de proceso            */        
+                 P_ID = GENERAR_ID()                                            
+                                                                                
+                 /* Concatenamos el modo de destino y el de origen    */        
+                 CMODO = XMODEX||DEST_MOD                                       
+                                                                                
+         /* --->    Llamada a modulo secundario                       */        
+                 CALL 'AF3RXSEC' XSRVX XUSERX XPASSX XSRCDIRX XDESTX,           
+                                 P_ID CMODO XSRCNOMX XWRKX                      
+              END                                                               
+                                                                                
+      END /* end DO Opcion 1 - Modo normal                            */        
+                                                                                
+                                                                                
+      /* ############################################################ */        
+      /*            Modo SAVE de ejecucion - 2 -                      */        
+      /* ############################################################ */        
+      WHEN ZCMD = '2' THEN                                                      
+      DO FOREVER                                                                
+         MPRC = MOSTRAR_PANEL(PANEL_SAV)                                        
+                                                                                
+         IF MPRC = 8 THEN EXIT                                                  
+                                                                                
+         /* Panel destino                                             */        
+         IF XDESTX = '?' THEN                                                   
+         DO                                                                     
+            MPRC = MOSTRAR_PANEL(PANEL_DES)                                     
+                                                                                
+            /* Cod.Retorno se establece a 8 cuando se pulsa PF03      */        
+            IF MPRC <> 0 & MPRC <> 8 THEN LEAVE                                 
+            ELSE IF COMPROBAR_DESTINO() = 0 THEN ITERATE                        
+         END                                                                    
+                                                                                
+         /* Panel clientes                                            */        
+         IF XCLIX = '?' THEN                                                    
+         DO                                                                     
+            MPRC = MOSTRAR_PANEL(PANEL_CLI)                                     
+            IF MPRC <> 0 & MPRC <> 8 THEN LEAVE                                 
+            ELSE DO                                                             
+                    IF COMPROBAR_CLIENTE() = 0 THEN                             
+                       DO                                                       
+                         RC_LOGIN = ESTABLECER_LOGIN('2')                       
+                       END                                                      
+                    ITERATE                                                     
+                 END                                                            
+         END                                                                    
+         /* Comprobacion todo correcto antes de llamar */                       
+         IF COMPROBAR_PARAMETROS() <> 0 THEN ITERATE                            
+         ELSE DO                                                                
+                 /* Generar identificador unico de proceso            */        
+                 P_ID = GENERAR_ID()                                            
+                                                                                
+                 /* Concatenamos el modo de destino, el de origen    */         
+                 CMODO = XMODEX||DEST_MOD                                       
+                                                                                
+         /* --->    Llamada a modulo SAVE                             */        
+                 CALL 'AF3RXSAV' XSRVX XUSERX XPASSX XSAVEDX XSAVENX,           
+                                 XDESTX P_ID CMODO XWRKX                        
+              END                                                               
+      END/* end DO Opcion 2 - Modo SAVE                              */         
+                                                                                
+      /* ############################################################ */        
+      /*            Modo FILE de ejecucion - 3 -                      */        
+      /* ############################################################ */        
+      WHEN ZCMD = '3' THEN /* Modo Fichero local                      */        
+      DO FOREVER                                                                
+         MPRC = MOSTRAR_PANEL(PANEL_FIL)                                        
+                                                                                
+         IF MPRC = 8 THEN EXIT                                                  
+                                                                                
+         /* Panel destino                                             */        
+         IF XDESTX = '?' THEN                                                   
+         DO                                                                     
+            MPRC = MOSTRAR_PANEL(PANEL_DES)                                     
+                                                                                
+            /* Cod.Retorno se establece a 8 cuando se pulsa PF03      */        
+            IF MPRC <> 0 & MPRC <> 8 THEN LEAVE                                 
+            ELSE IF COMPROBAR_DESTINO() = 0 THEN ITERATE                        
+         END                                                                    
+                                                                                
+         /* Panel clientes                                            */        
+         IF XCLIX = '?' THEN                                                    
+         DO                                                                     
+            MPRC = MOSTRAR_PANEL(PANEL_CLI)                                     
+            IF MPRC <> 0 & MPRC <> 8 THEN LEAVE                                 
+            ELSE DO                                                             
+                    IF COMPROBAR_CLIENTE() = 0 THEN                             
+                       DO                                                       
+                         RC_LOGIN = ESTABLECER_LOGIN('1')                       
+                       END                                                      
+                    ITERATE                                                     
+                 END                                                            
+         END                                                                    
+         /* Comprobacion todo correcto antes de llamar */                       
+         IF COMPROBAR_PARAMETROS() <> 0 THEN ITERATE                            
+         ELSE DO                                                                
+                 /* Generar identificador unico de proceso            */        
+                 P_ID = GENERAR_ID()                                            
+                                                                                
+                 /* Concatenamos el modo de destino y el de origen    */        
+                 CMODO = XMODEX||DEST_MOD                                       
+                                                                                
+         /* --->    Llamada a modulo FILE                             */        
+                 CALL 'AF3RXFIL' XSRVX XUSERX XPASSX XSRCFILX,                  
+                                 XDESTX P_ID CMODO XWRKX                        
+              END                                                               
+      END/* end DO Opcion 2 - Modo SAVE                              */         
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+      OTHERWISE SAY "Seleccione una opcion"                                     
+                                                                                
+   END /* Select                                                      */        
+                                                                                
+END /* Bucle principal                                                */        
+                                                                                
+"ISPEXEC REMPOP"                                                                
+"ISPEXEC LIBDEF ISPPLIB"                                                        
+                                                                                
+EXIT                                                                            
+                                                                                
+/***********************************************************************        
+   ESTABLECER_LOGIN - Va a la tabla a buscar los datos de conexion y            
+   patrones por defecto de un cliente. Si todo es correcto, establece           
+   las variables del panel con sus valores correspondientes.                    
+                                                                                
+   Modo 1: Carga todos los datos                                                
+   Modo 2: Carga todo excepto login/password (necesario para modo SAVE)         
+***********************************************************************/        
+ESTABLECER_LOGIN:                                                               
+   PARSE ARG LMODO                                                              
+                                                                                
+   SQLQUERY = "SELECT USERG,PASSG,FTPDIRG,PRECLI,PREISB FROM "TABLA,            
+              "WHERE PLAT='"XCLIX"'"                                            
+                                                                                
+   "REXXSQL"                                                                    
+   IF RC = 0 & _NROWS = 1 THEN                                                  
+      DO                                                                        
+         PRE_CLI = PRECLI.1                                                     
+         PRE_LOC = PREISB.1                                                     
+                                                                                
+         IF LMODO = 1 THEN                                                      
+         DO                                                                     
+            XUSERX = USERG.1                                                    
+            XPASSX = PASSG.1                                                    
+                                                                                
+            XSRCDIRX = PRE_CLI"."DIR_ORIGEN                                     
+            XSRCNOMX = PATRON_ORIGEN                                            
+                                                                                
+         END                                                                    
+                                                                                
+         XSRVX  = FTPDIRG.1                                                     
+                                                                                
+                                                                                
+         XX = USR_TIME()                                                        
+         PARSE VALUE DATE(STANDARD) WITH ANIO 5 MES 7 DIA                       
+                                                                                
+         XDESTX = PRE_LOC"."XCLIX"."PATRON_DESTINO||MES||DIA                    
+         XWRKX = PATRON_WRK"."ID_CLI.XCLIX"."preUT                              
+      END                                                                       
+   ELSE                                                                         
+      DO                                                                        
+         SAY "ERROR SQL: RC="RC                                                 
+         SAY SQLQUERY                                                           
+      END                                                                       
+   RETURN RC                                                                    
+                                                                                
+/***********************************************************************        
+  MOSTRAR_PANEL - Rutina que lanza un pop-up                                    
+***********************************************************************/        
+MOSTRAR_PANEL:                                                                  
+   PARSE ARG PANEL                                                              
+                                                                                
+   /* SALVA LAS PFS QUE SE VAN A UTILIZAR EN EL PANEL */                        
+   "ISPEXEC VGET (ZPF12                " ,                                      
+                 "            ) PROFILE"                                        
+                                                                                
+   HPF12 = ZPF12                                                                
+                                                                                
+   ZPF12 = 'END'  /* LIMPIA       */                                            
+   "ISPEXEC VPUT (ZPF12                " ,                                      
+                 "            ) PROFILE"                                        
+                                                                                
+                                                                                
+   "ISPEXEC ADDPOP"                                                             
+   "ISPEXEC DISPLAY PANEL("PANEL")"                                             
+   RCODE = RC                                                                   
+   "ISPEXEC REMPOP"                                                             
+                                                                                
+   ZPF12 = HPF12                                                                
+   "ISPEXEC VPUT (ZPF12                " ,                                      
+                 "            ) PROFILE"                                        
+                                                                                
+   RETURN RCODE                                                                 
+                                                                                
+/***********************************************************************        
+   COMPROBAR_CLIENTE - Selecciona el cliente del panel clientes                 
+***********************************************************************/        
+COMPROBAR_CLIENTE:                                                              
+   RET = 0                                                                      
+   SELECT                                                                       
+      WHEN XxxxX = 'x' THEN XxxxX = 'xxxx'                                     
+      OTHERWISE DO                                                              
+                                                                                
+                  RET = 1                                                       
+                END                                                             
+   END                                                                          
+   RETURN RET                                                                   
+                                                                                
+/***********************************************************************        
+  GENERAR_ID - Establece el identificador unico de este proceso                 
+  a partir del cliente, dia y mes                                               
+***********************************************************************/        
+GENERAR_ID:                                                                     
+   COD = "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 1 2 3 4 5"        
+                                                                                
+   PARSE VALUE DATE(STANDARD) WITH ANIO 5 MES 7 DIA                             
+   RET = ID_CLI.XCLIX||WORD(COD,MES)||WORD(COD,DIA)                             
+                                                                                
+   RETURN RET                                                                   
+                                                                                
+/***********************************************************************        
+   COMPROBAR_PARAMETROS - Verifica que los datos de las variables               
+   del panel principal sean correctos                                           
+***********************************************************************/        
+COMPROBAR_PARAMETROS:                                                           
+   RET = 0                                                                      
+                                                                                
+   IF XMODEX <> 'T' & XMODEX <> 'B' THEN DO                                     
+      RET = 1                                                                   
+      SAY "Introduzca 'T' o 'B' (Tabla/Batch) para establecer"                  
+      SAY "el tipo de datos de origen segun corresponda."                       
+   END                                                                          
+                                                                                
+   IF XCLIX = '' THEN DO                                                        
+      RET = 1                                                                   
+      SAY "El campo cliente no puede estar vacio."                              
+   END                                                                          
+   RETURN RET                                                                   
+                                                                                
+/**********************************************************************         
+ USR_TIME - Devuelve la parte variable de la ruta de salida en formato          
+ USRMMDD.THHMMSS                                                                
+***********************************************************************/        
+USR_TIME:                                                                       
+   varUID = SYSVAR(SYSUID)                                                      
+   varSecs = TIME(SECONDS)                                                      
+   varTime = TIME()                                                             
+   varDate = DATE(STANDARD)                                                     
+   userTime = VARUID||' '||varDate||' '||varTime                                
+                                                                                
+   preUT = SUBSTR(varUID, LENGTH(varUID) - 2 , 3)|| ,                           
+           SUBSTR(varDate, 5, 4)||'.T'||SUBSTR(varTime,1,2)||,                  
+           SUBSTR(varTime,4,2)||SUBSTR(varTime,7,2)                             
+   RETURN 0                                                                     
+                                                                                
+                                                                                
+/***********************************************************************        
+   COMPROBAR_DESTINO - Selecciona la forma en la que vendra el archivo          
+***********************************************************************/        
+COMPROBAR_DESTINO:                                                              
+   RET = 0                                                                      
+   SELECT                                                                       
+      WHEN XDPATX <> '' THEN                                                    
+        DO                                                                      
+           XDESTX = XDPATX                                                      
+           DEST_MOD = '1'                                                       
+       END                                                                      
+      WHEN XDCUAX <> '' THEN                                                    
+        DO                                                                      
+           XDESTX = XDCUAX                                                      
+           DEST_MOD = '2'                                                       
+       END                                                                      
+      WHEN XDPREX <> '' THEN                                                    
+        DO                                                                      
+           XDESTX = XDPREX                                                      
+           DEST_MOD = '3'                                                       
+       END                                                                      
+ OTHERWISE                                                                      
+        DO                                                                      
+           SAY "Selecciona un destino."                                         
+           RET = 1                                                              
+       END                                                                      
+   END                                                                          
+   RETURN RET                                                                   

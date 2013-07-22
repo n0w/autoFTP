@@ -1,0 +1,32 @@
+)PANEL                                                                          
+)ATTR FORMAT(EBCDIC)                                                            
+  _ TYPE(INPUT)  INTENS(LOW)  CAPS(ON) JUST(LEFT)                               
+  * TYPE(OUTPUT) INTENS(HIGH) COLOR(RED)                                        
+  + TYPE(TEXT)   INTENS(LOW)  SKIP(ON) COLOR(TURQ)                              
+  $ TYPE(TEXT)   INTENS(LOW)  COLOR(WHITE)                                      
+  % TYPE(TEXT)   INTENS(LOW)  COLOR(PINK)                                       
+  { TYPE(TEXT)   INTENS(HIGH)  COLOR(GREEN)                                     
+  [ TYPE(TEXT)   INTENS(HIGH) COLOR(RED)                                        
+  | TYPE(TEXT)   INTENS(LOW)  COLOR(BLUE)                                       
+                                                                                
+  < AREA(DYNAMIC)                                                               
+  R TYPE(CHAR) COLOR(RED)                                                       
+)BODY WINDOW(61,12)                                                             
+%          +        Seleccion de destino                                        
+%                   ====================                                        
+% Introduce el destino en la opcion adecuada:                                   
+%                                                                               
+% >$Patron (- POR IMPLEMENTAR -)                                                
+%  _Z                                                                           
+% >$Cualificador (por defecto)                                                  
+%  _Z                                                                           
+% >$Prefijo (solo cambia el primer prefijo)                                     
+%  _Z                                                                           
+%-----------------------------------------------------------                    
+                                   [PF03-Cancela   {INTRO-OK                    
+)INIT                                                                           
+ .ZVARS = '(XDPATX,XDCUAX,XDPREX)'                                              
+                                                                                
+)PROC                                                                           
+                                                                                
+)END                                                                            

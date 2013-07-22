@@ -1,0 +1,31 @@
+)PANEL                                                                          
+)ATTR FORMAT(EBCDIC)                                                            
+  _ TYPE(INPUT)  INTENS(LOW)  CAPS(ON) JUST(LEFT)                               
+  * TYPE(OUTPUT) INTENS(HIGH) COLOR(RED)                                        
+  + TYPE(TEXT)   INTENS(LOW)  SKIP(ON) COLOR(TURQ)                              
+  $ TYPE(TEXT)   INTENS(LOW)  COLOR(WHITE)                                      
+  % TYPE(TEXT)   INTENS(LOW)  COLOR(PINK)                                       
+  { TYPE(TEXT)   INTENS(HIGH)  COLOR(GREEN)                                     
+  [ TYPE(TEXT)   INTENS(HIGH) COLOR(RED)                                        
+  | TYPE(TEXT)   INTENS(LOW)  COLOR(BLUE)                                       
+                                                                                
+  < AREA(DYNAMIC)                                                               
+  R TYPE(CHAR) COLOR(RED)                                                       
+)BODY WINDOW(61,12)                                                             
+%                  + Automatizacion FTP          &ZDATE  %                      
+%                    ==================           [&ZUSER%                      
+$ Seleccione el modo de trabajo                                                 
+%                                                                               
+% Opcion =>_ZCMD                                                                
+%                                                                               
+%   1. Mediante patron / dir                                                    
+%   2. Mediante SAVE en cliente                                                 
+%   3. Mediante lista en miembro local                                          
+%                                                                               
+%-----------------------------------------------------------                    
+                                   [PF03-Cancela   {INTRO-OK                    
+)INIT                                                                           
+                                                                                
+)PROC                                                                           
+                                                                                
+)END                                                                            

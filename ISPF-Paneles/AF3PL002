@@ -1,0 +1,29 @@
+)PANEL                                                                          
+)ATTR FORMAT(EBCDIC)                                                            
+  _ TYPE(INPUT)  INTENS(LOW)  CAPS(ON) JUST(LEFT)                               
+  * TYPE(OUTPUT) INTENS(HIGH) COLOR(RED)                                        
+  + TYPE(TEXT)   INTENS(LOW)  SKIP(ON) COLOR(TURQ)                              
+  $ TYPE(TEXT)   INTENS(LOW)  COLOR(WHITE)                                      
+  % TYPE(TEXT)   INTENS(LOW)  COLOR(PINK)                                       
+  { TYPE(TEXT)   INTENS(HIGH)  COLOR(GREEN)                                     
+  [ TYPE(TEXT)   INTENS(HIGH) COLOR(RED)                                        
+  | TYPE(TEXT)   INTENS(LOW)  COLOR(BLUE)                                       
+                                                                                
+  < AREA(DYNAMIC)                                                               
+  R TYPE(CHAR) COLOR(RED)                                                       
+)BODY WINDOW(61,10)                                                             
+%          + Automatizacion FTP - PRUEBAS - v03    &ZDATE  %                    
+%            ==================================     [&ZUSER%                    
+$ Seleccione[UN$cliente ( Marcar con[X$)                                        
+   % $xxxx:_Z       $xxxx :_Z        $xxxx:_Z                                   
+   % $xxxx:_Z       $xxxx :_Z        $xxxx:_Z                                   
+   % $xxxx:_Z       $xxxx :_Z        $xxxx:_Z              
+   % $xxxx:_Z       $xxxx :_Z                                                   
+   % $xxxx:_Z       $xxxx :_Z                                                   
+%-----------------------------------------------------------                    
+                                   [PF03-Cancela   {INTRO-OK                    
+)INIT                                                                           
+ .ZVARS = '(XxxxxX,XxxxX,XxxxxX,XxxxX,XxxxxX)'                
+)PROC                                                                           
+                                                                                
+)END                                                                            

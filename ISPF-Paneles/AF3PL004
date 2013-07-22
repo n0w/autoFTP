@@ -1,0 +1,33 @@
+)PANEL                                                                          
+)ATTR FORMAT(EBCDIC)                                                            
+  _ TYPE(INPUT)  INTENS(LOW)  CAPS(ON) JUST(LEFT)                               
+  $ TYPE(TEXT)   INTENS(LOW)  COLOR(WHITE)                                      
+  % TYPE(TEXT)   INTENS(LOW)  COLOR(PINK)                                       
+  { TYPE(TEXT)   INTENS(HIGH)  COLOR(GREEN)                                     
+  [ TYPE(TEXT)   INTENS(HIGH) COLOR(RED)                                        
+  | TYPE(TEXT)   INTENS(LOW)  COLOR(BLUE)                                       
+  ¬ TYPE(INPUT) INTENS(NON) JUST(LEFT) CAPS(ON)                                 
+                                                                                
+)BODY WINDOW(64,16)                                                             
+%                + Modo: Lista miembros SAVE           &ZDATE  %                
+%                  =========================            [&ZUSER%                
+%(·) Cliente (? para lista):_Z                                                  
+%(·) Parametros de conexion                                                     
+$  - $Servidor:_Z                                                               
+$  - $Usuario:_Z                                                                
+$  - $Password:¬Z                                                               
+%(<)Origen                                                                      
+$  - Ruta a fichero SAVE remoto:_Z                                              
+$  - Nombre de fichero SAVE remoto:_Z                                           
+$  - (T)ablas / (B)atch:_Z                                                      
+%(>)Destino (? en destino local para lista)                                     
+$  - Trabajo:_Z                                                                 
+$  - Destino local:_Z                                                           
+%--------------------------------------------------------------                 
+                                       [PF12-Anterior {INTRO-OK                 
+)INIT                                                                           
+ .ZVARS ='(XCLIX,XSRVX,XUSERX,XPASSX,XSAVEDX,XSAVENX, +                         
+           XMODEX,XWRKX,XDESTX)'                                                
+)PROC                                                                           
+                                                                                
+)END                                                                            
