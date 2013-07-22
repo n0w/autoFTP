@@ -21,14 +21,36 @@ de trabajo seleccionada.
 3- AF3PL002: Seleccion de cliente                                               
 4- AF3PL003: Seleccion de destino                                               
 5- AF3PL004: Lista remota de ficheros                                           
-6- AF3PL005: Lista local de ficheros                                            
+6- AF3PL005: Lista local de ficheros  
+
+ - DESCRIPTION -                                                                
+ Manages massive file downloads over FTP. Several panels are written to
+ call each module attending to selected work mode.                              
+                                                                                
+ - LAST MODIFIED: 19/06/2013                                                  
+                                                                                
+ - MODULE DESCRIPTION -                                                                    
+1- AF3RXPPL: This file                                                    
+2- AF3RXSEC: Pattern/directory module                                      
+3- AF3RXSAV: Remote file list module                        
+4- AF3RXFIL: Local file list module                         
+                                                                                
+ - PANELS -                                                                    
+1- AF3PL000: Work mode selection                                       
+2- AF3PL001: Pattern/directory                                                  
+3- AF3PL002: Client selection panel                                               
+4- AF3PL003: Destination panel                                               
+5- AF3PL004: Remote file list                                           
+6- AF3PL005: Local file list    
                                                                                 
 ********************************************************************/           
 /* ------------------------------------------------------------------ */        
-/*              Ctes, variables temporales, predefinidos              */        
+/*              Ctes, variables temporales, predefinidos              */
+/*              Constants, aux vars, predefined data                  */        
 /* ------------------------------------------------------------------ */        
                                                                                 
-/* Informacion parametros clientes => TABLA                           */        
+/* Informacion parametros clientes => TABLA                           */
+/* Clients info parameters. DB2 table storage                         */        
 SUBSYS = 'xxxx'                                                                 
 TABLA = 'xxxxxx.FTPLOGIN'                                                       
                                                                                 
@@ -41,8 +63,10 @@ PATRON_DESTINO = 'xxx.xxx.xxx'
 PATRON_WRK = 'xxx.xxx.xxx.ZFTP'                                                  
                                                                                 
 DEST_MOD = '2' /* Modo de formato destino. Por defecto = 2            */        
+               /* Destination format mode. 2 by default               */        
                                                                                 
-/* LIB de paneles                                                     */        
+/* LIB de paneles                                                     */
+/* ISPF panels library declaration                                    */        
 LIB = 'xxx.xxx.xxx.REXX'                                                
 PANEL_SEL = 'AF3PL000'                                                          
 PANEL_PPL = 'AF3PL001'                                                          
@@ -51,7 +75,8 @@ PANEL_DES = 'AF3PL003'
 PANEL_SAV = 'AF3PL004'                                                          
 PANEL_FIL = 'AF3PL005'                                                          
                                                                                 
-/* Letras asociadas a clientes */                                               
+/* Letras asociadas a clientes */
+/* Client to letter mapping    */                                               
 ID_CLI.xxxx = 'x'                                                               
                                                                                 
 /* Inicializar entorno panel ISPF                                     */        
@@ -59,15 +84,18 @@ ID_CLI.xxxx = 'x'
 "ISPEXEC ADDPOP ROW(1) COLUMN (3)"                                              
                                                                                 
 /* ------------------------------------------------------------------ */        
-/*                    Bucle principal del programa                    */        
+/*                    Bucle principal del programa                    */
+/*                             Main loop                              */        
 /* ------------------------------------------------------------------ */        
 DO FOREVER                                                                      
-   /* Mostramos el primer panel. Iteramos hasta rc = 8 / PF03*/                 
+   /* Mostramos el primer panel. Iteramos hasta rc = 8 / PF03*/
+   /* Show first panel. Loop until rc = 8 => PF03                     */                 
    "ISPEXEC DISPLAY PANEL("PANEL_SEL")"                                         
    IF RC <> 0 THEN LEAVE                                                        
    SELECT                                                                       
       /* ############################################################ */        
-      /*            Modo normal de ejecucion - 1 -                    */        
+      /*            Modo normal de ejecucion - 1 -                    */
+      /*                Standard run mode - 1 -                       */        
       /* ############################################################ */        
       WHEN ZCMD = '1' THEN /* Modo normal                             */        
       DO FOREVER                                                                
@@ -80,12 +108,14 @@ DO FOREVER
          DO                                                                     
             MPRC = MOSTRAR_PANEL(PANEL_DES)                                     
                                                                                 
-            /* Cod.Retorno se establece a 8 cuando se pulsa PF03      */        
+            /* Cod.Retorno se establece a 8 cuando se pulsa PF03      */
+            /* RC is set to 8 when PF03 is pressed                    */        
             IF MPRC <> 0 & MPRC <> 8 THEN LEAVE                                 
             ELSE IF COMPROBAR_DESTINO() = 0 THEN ITERATE                        
          END                                                                    
                                                                                 
-         /* Panel clientes                                            */        
+         /* Panel clientes                                            */
+         /* Clients panel                                             */        
          IF XCLIX = '?' THEN                                                    
          DO                                                                     
             MPRC = MOSTRAR_PANEL(PANEL_CLI)                                     
@@ -98,25 +128,31 @@ DO FOREVER
                     ITERATE                                                     
                  END                                                            
          END                                                                    
-         /* Comprobacion todo correcto antes de llamar */                       
+         /* Comprobacion todo correcto antes de llamar */
+         /* Check everything is OK before calling      */                       
          IF COMPROBAR_PARAMETROS() <> 0 THEN ITERATE                            
          ELSE DO                                                                
-                 /* Generar identificador unico de proceso            */        
+                 /* Generar identificador unico de proceso            */
+                 /* Generate unique process identifier                */        
                  P_ID = GENERAR_ID()                                            
                                                                                 
-                 /* Concatenamos el modo de destino y el de origen    */        
+                 /* Concatenamos el modo de destino y el de origen    */
+                 /* Concatenate source and destination modes          */        
                  CMODO = XMODEX||DEST_MOD                                       
                                                                                 
-         /* --->    Llamada a modulo secundario                       */        
+         /* --->    Llamada a modulo secundario                       */
+         /* --->    Aux module call                                   */        
                  CALL 'AF3RXSEC' XSRVX XUSERX XPASSX XSRCDIRX XDESTX,           
                                  P_ID CMODO XSRCNOMX XWRKX                      
               END                                                               
                                                                                 
-      END /* end DO Opcion 1 - Modo normal                            */        
+      END /* end DO Opcion 1 - Modo normal                            */  
+          /* end DO Option l - Std mode                               */
                                                                                 
                                                                                 
       /* ############################################################ */        
-      /*            Modo SAVE de ejecucion - 2 -                      */        
+      /*            Modo SAVE de ejecucion - 2 -                      */
+      /*            Save run mode - 2-                                */        
       /* ############################################################ */        
       WHEN ZCMD = '2' THEN                                                      
       DO FOREVER                                                                
@@ -124,17 +160,18 @@ DO FOREVER
                                                                                 
          IF MPRC = 8 THEN EXIT                                                  
                                                                                 
-         /* Panel destino                                             */        
+         /* Panel destino                                             */
+         /* Destination panel                                         */        
          IF XDESTX = '?' THEN                                                   
          DO                                                                     
             MPRC = MOSTRAR_PANEL(PANEL_DES)                                     
-                                                                                
-            /* Cod.Retorno se establece a 8 cuando se pulsa PF03      */        
+            
             IF MPRC <> 0 & MPRC <> 8 THEN LEAVE                                 
             ELSE IF COMPROBAR_DESTINO() = 0 THEN ITERATE                        
          END                                                                    
                                                                                 
-         /* Panel clientes                                            */        
+         /* Panel clientes                                            */
+         /* Clients panel                                             */        
          IF XCLIX = '?' THEN                                                    
          DO                                                                     
             MPRC = MOSTRAR_PANEL(PANEL_CLI)                                     
@@ -147,23 +184,23 @@ DO FOREVER
                     ITERATE                                                     
                  END                                                            
          END                                                                    
-         /* Comprobacion todo correcto antes de llamar */                       
+         
          IF COMPROBAR_PARAMETROS() <> 0 THEN ITERATE                            
          ELSE DO                                                                
-                 /* Generar identificador unico de proceso            */        
+                      
                  P_ID = GENERAR_ID()                                            
-                                                                                
-                 /* Concatenamos el modo de destino, el de origen    */         
                  CMODO = XMODEX||DEST_MOD                                       
                                                                                 
-         /* --->    Llamada a modulo SAVE                             */        
+         /* --->    SAVE module call                                 */        
                  CALL 'AF3RXSAV' XSRVX XUSERX XPASSX XSAVEDX XSAVENX,           
                                  XDESTX P_ID CMODO XWRKX                        
               END                                                               
-      END/* end DO Opcion 2 - Modo SAVE                              */         
+      END/* end DO Opcion 2 - Modo SAVE                              */
+         /* end DO option 2 - SAVE mode                              */         
                                                                                 
       /* ############################################################ */        
-      /*            Modo FILE de ejecucion - 3 -                      */        
+      /*            Modo FILE de ejecucion - 3 -                      */
+      /*            FILE run mode          - 3 -                      */        
       /* ############################################################ */        
       WHEN ZCMD = '3' THEN /* Modo Fichero local                      */        
       DO FOREVER                                                                
@@ -171,17 +208,14 @@ DO FOREVER
                                                                                 
          IF MPRC = 8 THEN EXIT                                                  
                                                                                 
-         /* Panel destino                                             */        
          IF XDESTX = '?' THEN                                                   
          DO                                                                     
             MPRC = MOSTRAR_PANEL(PANEL_DES)                                     
                                                                                 
-            /* Cod.Retorno se establece a 8 cuando se pulsa PF03      */        
             IF MPRC <> 0 & MPRC <> 8 THEN LEAVE                                 
             ELSE IF COMPROBAR_DESTINO() = 0 THEN ITERATE                        
          END                                                                    
                                                                                 
-         /* Panel clientes                                            */        
          IF XCLIX = '?' THEN                                                    
          DO                                                                     
             MPRC = MOSTRAR_PANEL(PANEL_CLI)                                     
@@ -194,29 +228,27 @@ DO FOREVER
                     ITERATE                                                     
                  END                                                            
          END                                                                    
-         /* Comprobacion todo correcto antes de llamar */                       
+         
          IF COMPROBAR_PARAMETROS() <> 0 THEN ITERATE                            
          ELSE DO                                                                
-                 /* Generar identificador unico de proceso            */        
+                 
                  P_ID = GENERAR_ID()                                            
-                                                                                
-                 /* Concatenamos el modo de destino y el de origen    */        
                  CMODO = XMODEX||DEST_MOD                                       
                                                                                 
-         /* --->    Llamada a modulo FILE                             */        
+         /* --->    Llamada a modulo FILE                             */
+         /* --->    FILE module call                                  */        
                  CALL 'AF3RXFIL' XSRVX XUSERX XPASSX XSRCFILX,                  
                                  XDESTX P_ID CMODO XWRKX                        
               END                                                               
-      END/* end DO Opcion 2 - Modo SAVE                              */         
-                                                                                
-                                                                                
-                                                                                
+      END/* end DO Opcion 2 - Modo SAVE                              */
+         /* end DO Option 2 - SAVE mode                              */         
                                                                                 
       OTHERWISE SAY "Seleccione una opcion"                                     
                                                                                 
    END /* Select                                                      */        
                                                                                 
-END /* Bucle principal                                                */        
+END /* Bucle principal                                                */
+    /* Main loop                                                      */        
                                                                                 
 "ISPEXEC REMPOP"                                                                
 "ISPEXEC LIBDEF ISPPLIB"                                                        
@@ -229,7 +261,14 @@ EXIT
    las variables del panel con sus valores correspondientes.                    
                                                                                 
    Modo 1: Carga todos los datos                                                
-   Modo 2: Carga todo excepto login/password (necesario para modo SAVE)         
+   Modo 2: Carga todo excepto login/password (necesario para modo SAVE)
+   
+                    - Retrieve connection and pattern default data for
+   a given client. If everything OK, it sets up panel vars with default
+   values.
+   
+   Mode 1 - Load everything.
+   Mode 2 - Load everything but login/pass (needed for save mode)
 ***********************************************************************/        
 ESTABLECER_LOGIN:                                                               
    PARSE ARG LMODO                                                              
@@ -270,12 +309,14 @@ ESTABLECER_LOGIN:
    RETURN RC                                                                    
                                                                                 
 /***********************************************************************        
-  MOSTRAR_PANEL - Rutina que lanza un pop-up                                    
+  MOSTRAR_PANEL - Rutina que lanza un pop-up
+                - Pop-up launcher routine
 ***********************************************************************/        
 MOSTRAR_PANEL:                                                                  
    PARSE ARG PANEL                                                              
                                                                                 
-   /* SALVA LAS PFS QUE SE VAN A UTILIZAR EN EL PANEL */                        
+   /* SALVA LAS PFS QUE SE VAN A UTILIZAR EN EL PANEL */
+   /* SAVES PF KEYS USED IN PANEL */                        
    "ISPEXEC VGET (ZPF12                " ,                                      
                  "            ) PROFILE"                                        
                                                                                 
@@ -298,7 +339,8 @@ MOSTRAR_PANEL:
    RETURN RCODE                                                                 
                                                                                 
 /***********************************************************************        
-   COMPROBAR_CLIENTE - Selecciona el cliente del panel clientes                 
+   COMPROBAR_CLIENTE - Selecciona el cliente del panel clientes
+                     - Selects client from clients panel
 ***********************************************************************/        
 COMPROBAR_CLIENTE:                                                              
    RET = 0                                                                      
@@ -313,7 +355,10 @@ COMPROBAR_CLIENTE:
                                                                                 
 /***********************************************************************        
   GENERAR_ID - Establece el identificador unico de este proceso                 
-  a partir del cliente, dia y mes                                               
+  a partir del cliente, dia y mes  
+  
+             - Renders unique id for this process, from client, day and
+             month.
 ***********************************************************************/        
 GENERAR_ID:                                                                     
    COD = "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 1 2 3 4 5"        
@@ -325,7 +370,8 @@ GENERAR_ID:
                                                                                 
 /***********************************************************************        
    COMPROBAR_PARAMETROS - Verifica que los datos de las variables               
-   del panel principal sean correctos                                           
+   del panel principal sean correctos    
+                        - Checks main panel vars.
 ***********************************************************************/        
 COMPROBAR_PARAMETROS:                                                           
    RET = 0                                                                      
@@ -344,7 +390,9 @@ COMPROBAR_PARAMETROS:
                                                                                 
 /**********************************************************************         
  USR_TIME - Devuelve la parte variable de la ruta de salida en formato          
- USRMMDD.THHMMSS                                                                
+ USRMMDD.THHMMSS         
+ 
+          - Returns output path variable part as USRMMDD.THHMMSS
 ***********************************************************************/        
 USR_TIME:                                                                       
    varUID = SYSVAR(SYSUID)                                                      
@@ -360,7 +408,8 @@ USR_TIME:
                                                                                 
                                                                                 
 /***********************************************************************        
-   COMPROBAR_DESTINO - Selecciona la forma en la que vendra el archivo          
+   COMPROBAR_DESTINO - Selecciona la forma en la que vendra el archivo
+                     - Sets incoming file proccesing mode
 ***********************************************************************/        
 COMPROBAR_DESTINO:                                                              
    RET = 0                                                                      
