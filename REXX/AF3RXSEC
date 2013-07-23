@@ -4,7 +4,7 @@
  DESCRIPCION:                                                                   
  Modulo de AutoFTP. Descarga el listado (previamente formateado)                
 de cliente, extrae la informacion necesaria y genera el JCL que                 
-a su vez generará los JCLs de descarga mediante FTP, uno por cada               
+a su vez generarï¿½ los JCLs de descarga mediante FTP, uno por cada               
 fichero.                                                                        
                                                                                 
  ULTIMA REVISION: 19/06/2013                                                    
@@ -22,12 +22,34 @@ fichero.
     los que se traen y los que no.                                              
  9- Ruta de trabajo temporal (donde dejara los ficheros de                      
     listado, datos y el JCL generado.                                           
+                                       
+ OVERVIEW:                                                                   
+ AutoFTP Module. Downloads (the previously formatted) remote file list
+ from client, extracts whatever info is needed and renders the JCL file
+ which will create one JCL file for each download. 
+                                                                              
+ ARGS:                                                                    
                                                                                 
+ 1- Remote server IP
+ 2- User
+ 3- Password                                                                    
+ 4- Remote path of target files
+ 5- End path of downloaded files
+ 6- Unique process identifier
+ 7- Work mode: DB2 Tables/Batch(T,B)|Destination(1,2,3)                           
+ 8- Mask to apply to target files to discriminate which ones will 
+ be downloaded
+ 9- Auxiliary/temporal files path
+                                       
+                                       
+                                       
 ********************************************************************/           
 PARSE ARG IP LOGIN PASS REM_DIR LOC_DIR P_ID MODO,                              
           MASK WRK_DIR                                                          
                                                                                 
-/* Variables, inicializacion entorno, comprobaciones                  */        
+/* Variables, inicializacion entorno, comprobaciones                  */
+/* Vars, enviroment init, checks */ 
+
 TRACEID      = 'PAZ'                                                            
 USER_COMMAND = "USER "LOGIN                                                     
 PASS_COMMAND = "PASS "PASS                                                      
@@ -37,14 +59,17 @@ TMP_COMMAND  = "DIR '"REM_DIR"'"
 OPENSTRING   = IP" 21"                                                          
 SEQ_JCL      = 0                                                                
                                                                                 
-/* Llevamos la cuenta del secuencial */                                         
+/* Llevamos la cuenta del secuencial */  
+/* Sequential counter */
 ctrSalida = 1                                                                   
                                                                                 
 /* Separamos la entrada del modo */                                             
+/* Take apart input in work and destination modes */
 TABLA_BATCH = SUBSTR(MODO,1,1)                                                  
 DEST_MOD = SUBSTR(MODO,2,1)                                                     
                                                                                 
-/* Borrar por si existen los ficheros temporales */                             
+/* Borrar por si existen los ficheros temporales */   
+/* Delete (existing?) files before allocation */
 TRACE OFF                                                                       
 XX = MSG('OFF')                                                                 
                                                                                 
@@ -52,7 +77,8 @@ ADDRESS TSO "DELETE '"WRK_DIR".DATOS'"
 ADDRESS TSO "DELETE xxx.xxx.xxx..PARAM"                                      
 ADDRESS TSO "DELETE '"WRK_DIR".JCL'"                                            
                                                                                 
-/* Comprobar si existen las lib SAL y SUB. Crearlas si no existen    */         
+/* Comprobar si existen las lib SAL y SUB. Crearlas si no existen    */  
+/* Allocate libs */ 
 "ALLOC F(XXX) SPACE(25,50) TRACK LRECL(080) DSORG(PO) RECFM(F B A) ",           
 "DA('"WRK_DIR".SAL') BLKSIZE(32720)      REU        ",                          
 "DSNTYPE(LIBRARY)                                                  "            
@@ -63,7 +89,8 @@ ADDRESS TSO "DELETE '"WRK_DIR".JCL'"
 "DSNTYPE(LIBRARY)                                                  "            
 "FREE F(XXX)"                                                                   
                                                                                 
-/* Establecer conexion al FTP                                        */         
+/* Establecer conexion al FTP                                        */
+/* Establish FTP connection                                          */         
 XX = INICIALIZA_FTP()                                                           
                                                                                 
 SAY "[FTP] CD"                                                                  
@@ -78,7 +105,8 @@ IF ftpapi('fcai.', 'scmd',DIR_COMMAND, 'W') < 0 THEN DO
    CALL ftp_error 'fcai.'                                                       
 END                                                                             
                                                                                 
-/* Asigna el resultado del DIR al stem listado                       */         
+/* Asigna el resultado del DIR al stem listado                       */
+/* Copy dir command output to listado stem var                       */         
 IF ftpapi('fcai.', 'getl_copy', 'listado.', 'L') < 0 THEN DO                    
    CALL ftp_error 'fcai.'                                                       
 END                                                                             
@@ -100,18 +128,27 @@ DO i=2 TO listado.0 /* i = 1 es la cabecera */
    lDSOrg  = WORD(TEMP,9)                                                       
    lDSName = WORD(TEMP,10)                                                      
                                                                                 
-   /* Aplicamos la mascara al nombre de archivo */                              
-   /* Si la mascara esta vacia, nos traemos todos (XOR) */                      
+   /* Aplicamos la mascara al nombre de archivo                       */                              
+   /* Si la mascara esta vacia, nos traemos todos (XOR)               */                      
+   /* Apply mask to filename. If mask empty, all files will           */                              
+   /* be downloaded (XOR condition)                                   */                      
+
+   
    IF COMPRUEBA_PATRON(lDSName,MASK) = 1 && MASK = '' THEN                      
    DO /* INCLUIMOS EN LISTADO */                                                
       /* Si el modo es (T)abla, el identificador sera su codigo de tabla.       
-         Si el modo es (B)atch, entonces sera un secuencial.          */        
+         Si el modo es (B)atch, entonces sera un secuencial.          */ 
+
+      /* If work mode is (T)able, id will be tableid
+         If it's (B)atch, then id will be a sequential number instead */ 
+         
       IF TABLA_BATCH ='T' THEN                                                  
          id = SUBSTR(lDSName,4,5)                                               
       ELSE                                                                      
          id = RIGHT(ctrSalida,5,'0')                                            
                                                                                 
       /* Establecemos el nombre final del archivo local */                      
+      /* Set the final name of local file               */                      
       SELECT                                                                    
          WHEN DEST_MOD = '1' THEN                                               
          DO                                                                     
@@ -150,7 +187,8 @@ DO i=2 TO listado.0 /* i = 1 es la cabecera */
    ELSE ITERATE                                                                 
                                                                                 
 END                                                                             
-   /* Escribimos el contenido del stem a disco */                               
+   /* Escribimos el contenido del stem a disco */
+   /* Write stem contents to disk              */                               
    "ALLOCATE FI(FDAT) DA('"WRK_DIR".DATOS') NEW TRACKS",                        
    "SPACE(5,5) DIR(0) DSORG(PS) RECFM(F,B) LRECL(200) BLKSIZE(0)"               
    "EXECIO "ctrSalida - 1" DISKW FDAT (STEM sSal."                              
@@ -158,24 +196,29 @@ END
    "FREE F(FDAT)"                                                               
                                                                                 
                                                                                 
-/* Generamos el archivo de parametros de conexion */                            
+/* Generamos el archivo de parametros de conexion */
+/* Render connection params file                  */                            
 XX = GENERAR_PARAMETROS()                                                       
                                                                                 
-/* Generamos el JCL que llama a modelizC */                                     
+/* Generamos el JCL que llama a modelizC */
+/* Render JCL for file tailoring         */                                     
 XX = GENERAR_JCL()                                                              
                                                                                 
-/* Informamos al servidor de que nos vamos                           */         
+/* Informamos al servidor de que nos vamos                           */
+/* Tell server we are leaving                                        */         
 IF ftpapi('fcai.', 'scmd', 'QUIT', 'W') < 0 THEN DO                             
    CALL ftp_error 'fcai.'                                                       
 END                                                                             
                                                                                 
-/* Cerramos la API                                                   */         
+/* Cerramos la API                                                   */
+/* API close                                                         */         
 IF ftpapi('fcai.', 'term') < 0 THEN DO                                          
    SAY "Unexpected error on ftpapi('term')"                                     
    EXIT -1                                                                      
 END                                                                             
                                                                                 
-/* ctrSalida se inicializa a 1. Se le resta 1 entonces al imprimir */           
+/* ctrSalida se inicializa a 1. Se le resta 1 entonces al imprimir */
+/* ctrSalida initialized to 1. We substract 1 when printing info   */           
 SAY "- Terminado. "ctrSalida-1" archivo(s) en listado"                          
 SAY "  JCL generado en "WRK_DIR".JCL"                                           
 SAY "  REPFILES generado en "WRK_DIR".DATOS"                                    
@@ -186,7 +229,8 @@ EXIT
                                                                                 
 /**********************************************************************         
  GENERAR_SEQ - Genera el numero de secuencia que tomara cada JCL FTP-GET        
- en el rango 1 - 7                                                              
+ en el rango 1 - 7        
+             - Generates sequence number for each JCL FTPGET file
 ***********************************************************************/        
 GENERAR_SEQ:                                                                    
    IF SEQ_JCL > 6 THEN SEQ_JCL = 1                                              
@@ -195,7 +239,8 @@ GENERAR_SEQ:
    RETURN 0                                                                     
 /**********************************************************************         
  GENERAR_JCL - Genera el JCL con la informacion necesaria para llamar           
- a modelizC                                                                     
+ a modelizC        
+             - Generates JCL file for file tailoring
 ***********************************************************************/        
 GENERAR_JCL:                                                                    
    vUID = USERID()                                                              
@@ -223,9 +268,11 @@ GENERAR_JCL:
                                                                                 
 /**********************************************************************         
  INICIALIZA_FTP - Inicializa la API y se conecta al servidor remoto             
+                - Initializes API and connects to remote server
 ***********************************************************************/        
 INICIALIZA_FTP:                                                                 
-/* Inicializa el stem que utiliza la API - PASO 1 (CREATE)           */         
+/* Inicializa el stem que utiliza la API - PASO 1 (CREATE)           */
+/* Initializes API internal use stem - STEP 1 (CREATE)               */         
 IF ftpapi('fcai.', 'create', TRACEID) < 0 THEN DO                               
    SAY '[e] Error FTPAPI paso: CREATE'                                          
    EXIT -1                                                                      
@@ -236,7 +283,8 @@ IF ftpapi('fcai.', 'set_trace', 'Off') < 0 THEN DO
    CALL ftp_error 'fcai.'                                                       
 END                                                                             
                                                                                 
-/* Inicializa entorno y abre conexion.   - PASO 2 (INIT)             */         
+/* Inicializa entorno y abre conexion.   - PASO 2 (INIT)             */
+/* Initializes enviroment and opens connection - STEP 2 (INIT)       */         
 IF ftpapi('fcai.','init','-w 300 'OPENSTRING) < 0 THEN DO                       
    CALL ftp_error 'fcai.'                                                       
 END                                                                             
@@ -262,7 +310,8 @@ RETURN 0
                                                                                 
 /**********************************************************************         
  GENERAR_PARAMETROS - Genera el archivo que lleva los parametros de             
- conexion al FTP                                                                
+ conexion al FTP       
+                    - Generates file with FTP connection params inside.
 ***********************************************************************/        
 GENERAR_PARAMETROS:                                                             
    sPAR.0 = 5                                                                   
@@ -282,6 +331,7 @@ GENERAR_PARAMETROS:
                                                                                 
 /**********************************************************************         
  IMPRIMIR_ENTRADA - Muestra por pantalla los parametros que le entran.          
+                  - Show debug information
 ***********************************************************************/        
 IMPRIMIR_ENTRADA:                                                               
    SAY "- DEBUG - ENTRADA:"                                                     
@@ -300,7 +350,11 @@ IMPRIMIR_ENTRADA:
 /**********************************************************************         
  COMPRUEBA_PATRON - Rutina que aplica una mascara de la forma XXXNNNNN          
 (donde X representa letras y N numeros) a una cadena de caracteres y            
-devuelve 1 si encajan, 0 en otro caso. '*' deja pasar todo.                     
+devuelve 1 si encajan, 0 en otro caso. '*' deja pasar todo.     
+
+       - Applies a mask like XXXNNNNN (where X stand for letters and N
+for numbers) to a string. Returns 1 if they match, 0 otherwise.
+       * is wildcard for 'everything allowed'
 ***********************************************************************/        
 COMPRUEBA_PATRON:                                                               
    PARSE ARG NOM, PAT, X.                                                       
@@ -308,10 +362,12 @@ COMPRUEBA_PATRON:
                                                                                 
    IF PAT = '*' THEN RETURN 1                                                   
                                                                                 
-   /* COMPROBAMOS QUE EL PATRON Y LA CADENA TENGAN LA MISMA LONGITUD */         
+   /* COMPROBAMOS QUE EL PATRON Y LA CADENA TENGAN LA MISMA LONGITUD */    
+   /* CHECK PATTERN AND STRING HAVE SAME LENGTH */ 
    IF LENGTH(NOM) <> LENGTH(PAT) THEN RETURN 0                                  
                                                                                 
-   /* COMPROBAMOS, CARACTER A CARACTER, SI LA CADENA ENCAJA: */                 
+   /* COMPROBAMOS, CARACTER A CARACTER, SI LA CADENA ENCAJA: */   
+   /* LOOK FOR MATCHES CHAR BY CHAR */ 
    DO J=1 TO LENGTH(NOM)                                                        
       SELECT                                                                    
         WHEN SUBSTR(PAT,J,1) = '*' THEN ITERATE                                 
@@ -360,7 +416,8 @@ COMPRUEBA_PATRON:
    RETURN RET                                                                   
                                                                                 
 /**********************************************************************         
- FTP_ERROR - Rutina de manejo y control de errores para la API FTP              
+ FTP_ERROR - Rutina de manejo y control de errores para la API FTP     
+ Error handling routine for rexx ftp api
 ***********************************************************************/        
 FTP_ERROR: ARG stem                                                             
    SAY'[e] ERROR FTAPI:'                                                        
